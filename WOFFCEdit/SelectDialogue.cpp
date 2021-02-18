@@ -39,6 +39,7 @@ void SelectDialogue::SetObjectData(std::vector<SceneObject>* SceneGraph, int * s
 
 	//roll through all the objects in the scene graph and put an entry for each in the listbox
 	int numSceneObjects = m_sceneGraph->size();
+	m_listBox.AddString((LPCTSTR)"0");
 	for (int i = 0; i < numSceneObjects; i++)
 	{
 		//easily possible to make the data string presented more complex. showing other columns.

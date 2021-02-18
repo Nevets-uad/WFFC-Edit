@@ -30,6 +30,8 @@ ToolMain::~ToolMain()
 
 int ToolMain::getCurrentSelectionID()
 {
+	if(m_d3dRenderer.GetSelectionID() != m_selectedObject)
+		m_d3dRenderer.SetSelectionID(m_selectedObject);
 
 	return m_selectedObject;
 }
@@ -349,5 +351,10 @@ void ToolMain::UpdateInput(MSG * msg)
 	}
 	else m_toolInputCommands.rotLeft = false;
 
+	if (m_keyArray[' '])
+	{
+		m_toolInputCommands.space = true;
+	}
+	else m_toolInputCommands.space = false;
 	//WASD
 }
