@@ -5,39 +5,30 @@
 #include "DisplayObject.h"
 #include <DirectXMath.h>
 #include "InputCommands.h"
+#include "CameraModes.h"
 class Camera
 {
 public:
 	Camera();
 	~Camera();
 	//Updates the camera based off the step timer.
-	void Update(DX::StepTimer const& timer);
+	void Update();
 	//Get the view matrix from the camera.
 	DirectX::SimpleMath::Matrix  GetViewMatrix() { return m_view; }
 	//Get the current position of the camera.
 	DirectX::SimpleMath::Vector3 GetCameraPosition() { return m_camPosition; }
-	//Roates the camera to the left.
-	void RotateCameraLeft();
-	//Roates the camera to the right.
-	void RotateCameraRight();
-	//Moves the camera forward.
-	void MoveForward();
-	//Moves the camera backwards.
-	void MoveBackward();
-	//Moves the camera to the right.
-	void MoveRight();
-	//Moves the camera to the left.
-	void MoveLeft();
+	//Set the current camera position.
+	void SetCameraPosition(DirectX::SimpleMath::Vector3 newPosition) { m_camPosition = newPosition; Update(); }
 	/// <summary>
 	/// Sets the object that the camera should focus on.
 	/// </summary>
 	/// <param name="newObject">Reference to the object you wish to focus.</param>
-	void SetFocus(DisplayObject& newObject) { m_focusedObject = &newObject; }
+	void SetFocus(DisplayObject& newObject) { m_focusedObject = &newObject; Update(); }
 	void RemoveFocus() { m_focusedObject = nullptr; }
-	void Turn();
-	void SetFreeCam();
 	void HandleInput(InputCommands &Input);
 	void SetWindowSizes(int width, int height) { m_windowWidth = width; m_windowHeight = height; }
+	CameraMode GetCurrentCameraMode() { return m_currentMode; }
+	void SetCameraMode(CameraMode newMode) { m_currentMode = newMode; }
 private:
 	//The speed the camera moves at.
 	float							m_movespeed;
@@ -64,11 +55,33 @@ private:
 	//The object being focused on.
 	DisplayObject*					m_focusedObject;
 	//Mouse
-	bool							m_firstMouse;
-	float							m_lastX;
-	float							m_lastY;
-	bool							m_freeCam, m_camChanged;
 	int								m_windowWidth, m_windowHeight;
-
+	CameraMode						m_currentMode;
+private:
+	//Rotates the camera to the left.
+	void RotateLeft();
+	//Rotates the camera to the right.
+	void RotateRight();
+	//Rotates the camera up
+	void RotateUp();
+	//Rotates the camera down
+	void RotateDown();
+	//Moves the camera forward.
+	void MoveForward();
+	//Moves the camera backwards.
+	void MoveBackward();
+	//Moves the camera to the right.
+	void MoveRight();
+	//Moves the camera to the left.
+	void MoveLeft();
+	//Moves the camera up
+	void MoveUp();
+	//Moves the camera down
+	void MoveDown();
+	//Turns the camera
+	void Turn(int& x, int& y, bool& needsUpdate);
+	void FreeCamControls(bool& needsUpdate, InputCommands &Input);
+	void RotateCamControls(bool& needsUpdate, InputCommands &Input);
+	void FocusCamControls(bool& needsUpdate, InputCommands &Input);
 };
 

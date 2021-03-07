@@ -1,4 +1,6 @@
 ﻿C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE\VC\VCTargets\Microsoft.CppBuild.targets(391,5): warning MSB8028: The intermediate directory (Debug\) contains files shared from another project (Win32SimpleSample.vcxproj).  This can lead to incorrect clean and rebuild behavior.
-  SelectDialogue.cpp
-  _WIN32_WINNT not defined. Defaulting to _WIN32_WINNT_MAXVER (see WinSDKVer.h)
+  Camera.cpp
+e:\cmp405\wffc-edit\woffcedit\camera.cpp(6): warning C4305: '=': truncation from 'double' to 'float'
+e:\cmp405\wffc-edit\woffcedit\camera.cpp(161): warning C4244: '*=': conversion from 'float' to 'int', possible loss of data
+e:\cmp405\wffc-edit\woffcedit\camera.cpp(162): warning C4244: '*=': conversion from 'float' to 'int', possible loss of data
   Win32SimpleSample.vcxproj -> E:\CMP405\WFFC-Edit\WOFFCEdit\Debug\WoFEdit.exe

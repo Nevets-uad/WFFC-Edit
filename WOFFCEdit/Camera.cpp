@@ -40,53 +40,44 @@ Camera::Camera()
 	m_yaw = -90.0f;
 	m_pitch = 0.0f;
 	m_roll = 0.0f;
-	m_firstMouse = true;
-	m_lastX = 0.0f;
-	m_lastY = 0.0f;
 	m_sensitivity = 0.3f;
-	m_freeCam = false;
-	m_camChanged = false;
+
+	m_currentMode = CameraMode::ROTATE;
+	Update();
 }
 
 Camera::~Camera()
 {
 }
 
-void Camera::Update(DX::StepTimer const &timer)
+void Camera::Update()
 {
-	//TODO  any more complex than this, and the camera should be abstracted out to somewhere else
-	if(m_freeCam)
-		Turn();
-	
-	if (m_focusedObject)
+	if (m_currentMode == CameraMode::FOCUSED && m_focusedObject)
 	{
 		DirectX::SimpleMath::Vector3 objectDirection = m_focusedObject->m_position - m_camPosition;
 		objectDirection.Normalize();
 		m_camLookDirection = objectDirection;
 	}
-	//camera motion is on a plane, so kill the y component of the look direction
-	DirectX::SimpleMath::Vector3 planarMotionVector = m_camLookDirection;
-	planarMotionVector.y = 0.0;
 
-	float cosR, cosP, cosY; //temp values for sin/cos from
+	float cosR, cosP, cosY;
 	float sinR, sinP, sinY;
-	// Roll, Pitch and Yall are variables stored by the camera
-	// handle rotation
 	// Only want to calculate these values once, when rotation changes, not every frame.
-	cosY = cosf(planarMotionVector.z * 3.1415 / 180.0f);
-	cosP = cosf(planarMotionVector.y * 3.1415 / 180.0f);
-	cosR = cosf(planarMotionVector.x * 3.1415 / 180.0f);
-	sinY = sinf(planarMotionVector.z * 3.1415 / 180.0f);
-	sinP = sinf(planarMotionVector.y * 3.1415 / 180.0f);
-	sinR = sinf(planarMotionVector.x * 3.1415 / 180.0f);
-
-	if (!m_freeCam && !m_focusedObject)
+	cosY = cosf(DirectX::XMConvertToRadians(m_camOrientation.z));
+	cosP = cosf(DirectX::XMConvertToRadians(m_camOrientation.y));
+	cosR = cosf(DirectX::XMConvertToRadians(m_camOrientation.x));
+	sinY = sinf(DirectX::XMConvertToRadians(m_camOrientation.z));
+	sinP = sinf(DirectX::XMConvertToRadians(m_camOrientation.y));
+	sinR = sinf(DirectX::XMConvertToRadians(m_camOrientation.x));
+	
+	if (m_currentMode != CameraMode::FREE && !m_focusedObject)
 	{
 		//create look direction from Euler angles in m_camOrientation
-		m_camLookDirection.x = sin((m_camOrientation.y)*3.1415 / 180);
-		m_camLookDirection.z = cos((m_camOrientation.y)*3.1415 / 180);
+		m_camLookDirection.x = sinY * cosP;
+		m_camLookDirection.y = sinP;
+		m_camLookDirection.z = cosP * -cosY;
 		m_camLookDirection.Normalize();
 	}
+
 	// Up Vector
 	m_camUp.x = (-cosY * sinR - sinY * sinP * cosR);
 	m_camUp.y = (cosP * cosR);
@@ -98,24 +89,31 @@ void Camera::Update(DX::StepTimer const &timer)
 	//update lookat point
 	if (m_focusedObject)
 		m_camLookAt = m_focusedObject->m_position;
-	else
-		m_camLookAt = m_camPosition + m_camLookDirection;
+
+
+	m_camLookAt = m_camPosition + m_camLookDirection;
 
 	
 	//apply camera vectors
 	m_view = DirectX::SimpleMath::Matrix::CreateLookAt(m_camPosition, m_camLookAt, m_camUp);
-
-	//Reset the camera being changed each frame
-	if(m_camChanged)
-		m_camChanged = false;
 }
 
-void Camera::RotateCameraLeft()
+void Camera::RotateLeft()
+{
+	m_camOrientation.z -= m_camRotRate;
+}
+
+void Camera::RotateRight()
+{
+	m_camOrientation.z += m_camRotRate;
+}
+
+void Camera::RotateUp()
 {
 	m_camOrientation.y += m_camRotRate;
 }
 
-void Camera::RotateCameraRight()
+void Camera::RotateDown()
 {
 	m_camOrientation.y -= m_camRotRate;
 }
@@ -140,28 +138,32 @@ void Camera::MoveLeft()
 	m_camPosition -= m_camRight * m_movespeed;
 }
 
-void Camera::Turn()
+void Camera::MoveUp()
 {
-	POINT mousePos;
-	GetCursorPos(&mousePos);
-	if (m_firstMouse)
+	m_camPosition.y += m_movespeed;
+}
+
+void Camera::MoveDown()
+{
+	m_camPosition.y -= m_movespeed;
+}
+
+void Camera::Turn(int& x, int& y, bool& needsUpdate)
+{
+
+	int xOffset = (x + 2) - (m_windowWidth / 2);
+	int yOffset = (m_windowHeight / 2) - (y + 26);
+
+	if (!xOffset && !yOffset)
 	{
-		m_lastX = mousePos.x;
-		m_lastY = mousePos.y;
-		m_firstMouse = false;
+		return;
 	}
 
-	float xoffset = mousePos.x - m_lastX;
-	float yoffset = m_lastY - mousePos.y; // reversed since y-coordinates go from bottom to top
-	m_lastX = mousePos.x;
-	m_lastY = mousePos.y;
+	xOffset *= m_sensitivity;
+	yOffset *= m_sensitivity;
 
-
-	xoffset *= m_sensitivity;
-	yoffset *= m_sensitivity;
-
-	m_yaw += xoffset;
-	m_pitch += yoffset;
+	m_yaw += xOffset;
+	m_pitch += yOffset;
 
 	// make sure that when pitch is out of bounds, screen doesn't get flipped
 	if (m_pitch > 89.0f)
@@ -176,39 +178,194 @@ void Camera::Turn()
 	forward.z = (sin(DirectX::XMConvertToRadians(m_yaw)) * cos(DirectX::XMConvertToRadians(m_pitch)));
 	forward.Normalize();
 	m_camLookDirection = forward;
+
+	POINT cursor;
+	cursor.x = m_windowWidth / 2;
+	cursor.y = m_windowHeight / 2;
+	ClientToScreen(GetActiveWindow(), &cursor);
+	SetCursorPos(cursor.x, cursor.y);
+
+	x = m_windowWidth / 2;
+	y = m_windowHeight / 2;
+
+	needsUpdate = true;
 }
 
-void Camera::SetFreeCam()
+void Camera::FreeCamControls(bool& needsUpdate, InputCommands &Input)
 {
-	m_freeCam = !m_freeCam;
+	Turn(Input.mouseX, Input.mouseY, needsUpdate);
+
+	//Right rotation
+	if (Input.rotateRight)
+	{
+		MoveUp();
+		needsUpdate = true;
+	}
+	//Left rotation
+	if (Input.rotateLeft)
+	{
+		MoveDown();
+		needsUpdate = true;
+	}
+	//Forward movement
+	if (Input.forward)
+	{
+		MoveForward();
+		needsUpdate = true;
+	}
+	//Backward movement
+	if (Input.back)
+	{
+		MoveBackward();
+		needsUpdate = true;
+	}
+	//Right movement
+	if (Input.right)
+	{
+		MoveRight();
+		needsUpdate = true;
+	}
+	//Left movement
+	if (Input.left)
+	{
+		MoveLeft();
+		needsUpdate = true;
+	}
+
+	
+}
+
+void Camera::RotateCamControls(bool& needsUpdate, InputCommands &Input)
+{
+	if (Input.rotateUp)
+	{
+		RotateUp();
+		needsUpdate = true;
+	}
+	if (Input.rotateDown)
+	{
+		RotateDown();
+		needsUpdate = true;
+	}
+	if (Input.rotateLeft)
+	{
+		RotateLeft();
+		needsUpdate = true;
+	}
+	if (Input.rotateRight)
+	{
+		RotateRight();
+		needsUpdate = true;
+	}
+}
+
+void Camera::FocusCamControls(bool& needsUpdate, InputCommands &Input)
+{
+	if (!m_focusedObject)
+		return;
+
+	//Implement proper rotation around the focused object.
+	//Forward movement
+	if (Input.forward)
+	{
+		if (DirectX::SimpleMath::Vector3::Distance(m_camPosition, m_focusedObject->m_position) > 2.0f)
+		{
+			MoveForward();
+			needsUpdate = true;
+		}
+	}
+	//Backward movement
+	if (Input.back)
+	{
+		MoveBackward();
+		needsUpdate = true;
+	}
+	//Right movement
+	if (Input.right)
+	{
+		MoveRight();
+		needsUpdate = true;
+	}
+	//Left movement
+	if (Input.left)
+	{
+		MoveLeft();
+		needsUpdate = true;
+	}
+
+	if (Input.rotateUp)
+	{
+		RotateUp();
+		needsUpdate = true;
+	}
+	if (Input.rotateDown)
+	{
+		RotateDown();
+		needsUpdate = true;
+	}
+	//Right rotation
+	if (Input.rotateRight)
+	{
+		RotateRight();
+		needsUpdate = true;
+	}
+	//Left rotation
+	if (Input.rotateLeft)
+	{
+		RotateLeft();
+		needsUpdate = true;
+	}
 }
 
 void Camera::HandleInput(InputCommands &Input)
 {
-	//Right rotation
-	if (Input.rotRight)
-		RotateCameraRight();
-	//Left rotation
-	if (Input.rotLeft)
-		RotateCameraLeft();
-	//Forward movement
-	if (Input.forward)
-		MoveForward();
-	//Backward movement
-	if (Input.back)
-		MoveBackward();
-	//Right movement
-	if (Input.right)
-		MoveRight();
-	//Left movement
-	if (Input.left)
-		MoveLeft();
-	//Space
-	if (Input.space && !m_camChanged)
+	bool camUpdated = false;
+	if (Input.numOne)
+		m_currentMode = CameraMode::FREE;
+
+	if (Input.numTwo)
+		m_currentMode = CameraMode::ROTATE;
+
+	if (Input.numThree)
+		m_currentMode = CameraMode::FOCUSED;
+
+	switch (m_currentMode)
 	{
-		SetFreeCam();
-		m_camChanged = true;
+	case CameraMode::FOCUSED:
+		FocusCamControls(camUpdated, Input);
+		break;
+	case CameraMode::FREE:
+		FreeCamControls(camUpdated, Input);
+		break;
+	case CameraMode::ROTATE:
+		RotateCamControls(camUpdated, Input);
+		break;
+	default:
+		RotateCamControls(camUpdated, Input);
+		break;
 	}
+	//Space
+	if (Input.space)
+	{
+		//Move the mouse to the centre of the screen
+		POINT mousePos;
+		mousePos.x = m_windowWidth / 2;
+		mousePos.y = m_windowHeight / 2;
+
+		ClientToScreen(GetActiveWindow(), &mousePos);
+		SetCursorPos(mousePos.x, mousePos.y);
+		Input.mouseX = m_windowWidth / 2;
+		Input.mouseY = m_windowHeight / 2;
+		//Change to free cam
+		SetCameraMode(CameraMode::FREE);
+		//Unset the space press
+		Input.space = false;
+		
+		camUpdated = true;
+	}
+
+	if (camUpdated)
+		Update();
 }
 
 

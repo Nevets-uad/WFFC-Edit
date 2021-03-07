@@ -9,16 +9,11 @@ ToolMain::ToolMain()
 {
 
 	m_currentChunk = 0;		//default value
-	m_selectedObject = 0;	//initial selection ID
+	m_selectedObject = -1;	//initial selection ID
 	m_sceneGraph.clear();	//clear the vector for the scenegraph
 	m_databaseConnection = NULL;
 
-	//zero input commands
-	m_toolInputCommands.forward		= false;
-	m_toolInputCommands.back		= false;
-	m_toolInputCommands.left		= false;
-	m_toolInputCommands.right		= false;
-	
+	InitInputValues();
 }
 
 
@@ -182,7 +177,7 @@ void ToolMain::onActionLoad()
 	m_d3dRenderer.BuildDisplayList(&m_sceneGraph);
 	//build the renderable chunk 
 	m_d3dRenderer.BuildDisplayChunk(&m_chunk);
-
+	
 }
 
 void ToolMain::onActionSave()
@@ -279,9 +274,19 @@ void ToolMain::onActionSaveTerrain()
 	m_d3dRenderer.SaveDisplayChunk(&m_chunk);
 }
 
+void ToolMain::onFreeCamToggle()
+{
+	m_d3dRenderer.ChangeCameraMode();
+}
+
 void ToolMain::Tick(MSG *msg)
 {
 	//do we have a selection
+	if (m_toolInputCommands.mouseLBDown)
+	{
+		m_selectedObject = m_d3dRenderer.MousePicking();
+		m_toolInputCommands.mouseLBDown = false;
+	}
 	//do we have a mode
 	//are we clicking / dragging /releasing
 	//has something changed
@@ -308,10 +313,12 @@ void ToolMain::UpdateInput(MSG * msg)
 		break;
 
 	case WM_MOUSEMOVE:
+		m_toolInputCommands.mouseX = GET_X_LPARAM(msg->lParam);
+		m_toolInputCommands.mouseY = GET_Y_LPARAM(msg->lParam);
 		break;
-
 	case WM_LBUTTONDOWN:	//mouse button down,  you will probably need to check when its up too
 		//set some flag for the mouse button in inputcommands
+		m_toolInputCommands.mouseLBDown = true;
 		break;
 
 	}
@@ -340,21 +347,72 @@ void ToolMain::UpdateInput(MSG * msg)
 	}
 	else m_toolInputCommands.right = false;
 	//rotation
-	if (m_keyArray['E'])
+	if (m_keyArray['E'] || m_keyArray[VK_RIGHT])
 	{
-		m_toolInputCommands.rotRight = true;
+		m_toolInputCommands.rotateRight = true;
 	}
-	else m_toolInputCommands.rotRight = false;
-	if (m_keyArray['Q'])
+	else m_toolInputCommands.rotateRight = false;
+	if (m_keyArray['Q'] || m_keyArray[VK_LEFT])
 	{
-		m_toolInputCommands.rotLeft = true;
+		m_toolInputCommands.rotateLeft = true;
 	}
-	else m_toolInputCommands.rotLeft = false;
+	else m_toolInputCommands.rotateLeft = false;
 
+	if ( m_keyArray[VK_UP])
+	{
+		m_toolInputCommands.rotateUp = true;
+	}
+	else m_toolInputCommands.rotateUp = false;
+
+	if ( m_keyArray[VK_DOWN])
+	{
+		m_toolInputCommands.rotateDown = true;
+	}
+	else m_toolInputCommands.rotateDown = false;
 	if (m_keyArray[' '])
 	{
 		m_toolInputCommands.space = true;
 	}
 	else m_toolInputCommands.space = false;
-	//WASD
+
+	//Number keys
+	m_keyArray['1'] ? m_toolInputCommands.numOne = true : m_toolInputCommands.numOne = false;
+	m_keyArray['3'] ? m_toolInputCommands.numTwo = true : m_toolInputCommands.numTwo = false;
+	m_keyArray['2'] ? m_toolInputCommands.numThree = true : m_toolInputCommands.numThree = false;
+	m_keyArray['4'] ? m_toolInputCommands.numFour = true : m_toolInputCommands.numFour = false;
+	m_keyArray['5'] ? m_toolInputCommands.numFive = true : m_toolInputCommands.numFive = false;
+	m_keyArray['6'] ? m_toolInputCommands.numSix = true : m_toolInputCommands.numSix = false;
+	m_keyArray['7'] ? m_toolInputCommands.numSeven = true : m_toolInputCommands.numSeven = false;
+	m_keyArray['8'] ? m_toolInputCommands.numEight = true : m_toolInputCommands.numEight = false;
+	m_keyArray['9'] ? m_toolInputCommands.numNine = true : m_toolInputCommands.numNine = false;
+}
+
+void ToolMain::InitInputValues()
+{
+	//zero input commands
+	//Movement
+	m_toolInputCommands.forward = false;
+	m_toolInputCommands.back = false;
+	m_toolInputCommands.left = false;
+	m_toolInputCommands.right = false;
+	m_toolInputCommands.space = false;
+	//Rotations
+	m_toolInputCommands.rotateLeft = false;
+	m_toolInputCommands.rotateRight = false;
+	m_toolInputCommands.rotateUp = false;
+	m_toolInputCommands.rotateDown = false;
+	//Buttons
+	m_toolInputCommands.mouseLBDown = false;
+	m_toolInputCommands.numOne = false;
+	m_toolInputCommands.numTwo = false;
+	m_toolInputCommands.numThree = false;
+	m_toolInputCommands.numFour = false;
+	m_toolInputCommands.numFive = false;
+	m_toolInputCommands.numSix = false;
+	m_toolInputCommands.numSeven = false;
+	m_toolInputCommands.numEight = false;
+	m_toolInputCommands.numNine = false;
+	//Mouse
+	m_toolInputCommands.mouseX = 0;
+	m_toolInputCommands.mouseY = 0;
 }

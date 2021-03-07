@@ -8,7 +8,6 @@
 #include "InputCommands.h"
 #include <vector>
 
-
 class ToolMain
 {
 public: //methods
@@ -22,10 +21,13 @@ public: //methods
 	void	onActionLoad();													//load the current chunk
 	afx_msg	void	onActionSave();											//save the current chunk
 	afx_msg void	onActionSaveTerrain();									//save chunk geometry
+	afx_msg void	onFreeCamToggle();
 
 	void	Tick(MSG *msg);
 	void	UpdateInput(MSG *msg);
 
+	void SetScreenCorner(POINT screenCorner) {	corner = screenCorner;	}
+	;
 public:	//variables
 	std::vector<SceneObject>    m_sceneGraph;	//our scenegraph storing all the objects in the current chunk
 	ChunkObject					m_chunk;		//our landscape chunk
@@ -33,7 +35,7 @@ public:	//variables
 
 private:	//methods
 	void	onContentAdded();
-
+	void	InitInputValues();
 
 		
 private:	//variables
@@ -48,6 +50,6 @@ private:	//variables
 	int m_height;
 	int m_currentChunk;			//the current chunk of thedatabase that we are operating on.  Dictates loading and saving. 
 	
-
+	POINT corner;
 	
 };

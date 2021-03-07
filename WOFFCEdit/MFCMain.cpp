@@ -7,6 +7,7 @@ BEGIN_MESSAGE_MAP(MFCMain, CWinApp)
 	ON_COMMAND(ID_FILE_SAVETERRAIN, &MFCMain::MenuFileSaveTerrain)
 	ON_COMMAND(ID_EDIT_SELECT, &MFCMain::MenuEditSelect)
 	ON_COMMAND(ID_BUTTON40001,	&MFCMain::ToolBarButton1)
+	ON_COMMAND(ID_BUTTON40006, &MFCMain::ToolBarFreeCamButton)
 	ON_UPDATE_COMMAND_UI(ID_INDICATOR_TOOL, &CMyFrame::OnUpdatePage)
 END_MESSAGE_MAP()
 
@@ -25,7 +26,6 @@ BOOL MFCMain::InitInstance()
 					0,
 					NULL
 				);
-
 	//show and set the window to run and update. 
 	m_frame->ShowWindow(SW_SHOW);
 	m_frame->UpdateWindow();
@@ -69,7 +69,12 @@ int MFCMain::Run()
 		else
 		{	
 			int ID = m_ToolSystem.getCurrentSelectionID();
-			std::wstring statusString = L"Selected Object: " + std::to_wstring(ID);
+			std::wstring statusString;
+			if(ID == -1)
+				statusString = L"Selected Object: None";
+			else
+				statusString = L"Selected Object: " + std::to_wstring(ID);
+
 			m_ToolSystem.Tick(&msg);
 
 			//send current object ID to status bar in The main frame
@@ -106,6 +111,11 @@ void MFCMain::ToolBarButton1()
 {
 	
 	m_ToolSystem.onActionSave();
+}
+
+void MFCMain::ToolBarFreeCamButton()
+{
+	m_ToolSystem.onFreeCamToggle();
 }
 
 

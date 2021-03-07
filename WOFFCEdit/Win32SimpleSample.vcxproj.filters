@@ -62,6 +62,9 @@
     <ClCompile Include="Camera.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="InspectorDialogue.cpp">
+      <Filter>MFC</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DeviceResources.h">
@@ -113,6 +116,12 @@
     </ClInclude>
     <ClInclude Include="Camera.h">
       <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="InspectorDialogue.h">
+      <Filter>MFC</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraModes.h">
+      <Filter>Tool</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

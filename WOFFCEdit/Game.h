@@ -13,7 +13,7 @@
 #include "InputCommands.h"
 #include <vector>
 #include "Camera.h"
-
+#include "CameraModes.h"
 // A basic game implementation that creates a D3D11 device and
 // provides a game loop.
 class Game : public DX::IDeviceNotify
@@ -49,10 +49,13 @@ public:
 	void BuildDisplayList(std::vector<SceneObject> * SceneGraph); //note vector passed by reference 
 	void BuildDisplayChunk(ChunkObject *SceneChunk);
 	void SaveDisplayChunk(ChunkObject *SceneChunk);	//saves geometry et al
+	void ChangeCameraMode();
 	void ClearDisplayList();
 
 	void SetSelectionID(int selected);
 	int GetSelectionID() { return m_selectionID; }
+
+	int MousePicking();
 #ifdef DXTK_AUDIO
 	void NewAudioDevice();
 #endif
@@ -119,6 +122,20 @@ private:
 	//Camera object
 	Camera																	m_camera;
 	int																		m_selectionID;
+
+	//Window rect
+	RECT																	m_screenDimensions;
+
+	//Render Targets
+	//ID3D11RenderTargetView*													inspectBuffer;
+
+	DirectX::SimpleMath::Vector2											m_mousePosition;
+	DirectX::SimpleMath::Vector2											m_viewportBounds;
+
+	int																		m_winWidth;
+	int																		m_winHeight;
+	
+
 };
 
 std::wstring StringToWCHART(std::string s);

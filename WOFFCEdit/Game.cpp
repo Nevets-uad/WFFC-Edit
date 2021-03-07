@@ -20,10 +20,11 @@ Game::Game()
     m_deviceResources->RegisterDeviceNotify(this);
 	m_displayList.clear();
 	//initial Settings
+	
 	//modes
 	m_grid = false;
 
-	m_selectionID = 0;
+	
 }
 
 Game::~Game()
@@ -48,6 +49,7 @@ void Game::Initialize(HWND window, int width, int height)
     m_mouse->SetWindow(window);
 
     m_deviceResources->SetWindow(window, width, height);
+	
 	m_camera.SetWindowSizes(width, height);
     m_deviceResources->CreateDeviceResources();
     CreateDeviceDependentResources();
@@ -55,6 +57,9 @@ void Game::Initialize(HWND window, int width, int height)
     m_deviceResources->CreateWindowSizeDependentResources();
     CreateWindowSizeDependentResources();
 	
+	GetClientRect(window, &m_screenDimensions);
+	m_winWidth = width;
+	m_winHeight = height;
 #ifdef DXTK_AUDIO
     // Create DirectXTK for Audio objects
     AUDIO_ENGINE_FLAGS eflags = AudioEngine_Default;
@@ -77,6 +82,10 @@ void Game::Initialize(HWND window, int width, int height)
     m_effect1->Play(true);
     m_effect2->Play();
 #endif
+
+	m_selectionID = 0;
+	m_mousePosition = DirectX::SimpleMath::Vector2(0, 0);
+	m_viewportBounds = DirectX::SimpleMath::Vector2(0, 0);
 }
 
 void Game::SetGridState(bool state)
@@ -112,7 +121,6 @@ void Game::Update(DX::StepTimer const& timer)
 {
 	//Update the camera
 	m_camera.HandleInput(m_InputCommands);
-	m_camera.Update(timer);
 	//Set the matrices
     m_batchEffect->SetView(m_camera.GetViewMatrix());
     m_batchEffect->SetWorld(Matrix::Identity);
@@ -143,8 +151,7 @@ void Game::Update(DX::StepTimer const& timer)
         }
     }
 #endif
-
-   
+	
 }
 #pragma endregion
 
@@ -193,6 +200,35 @@ void Game::Render()
 		XMMATRIX local = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale, g_XMZero, rotate, translate);
 
 		m_displayList[i].m_model->Draw(context, *m_states, local, m_camera.GetViewMatrix(), m_projection, false);	//last variable in draw,  make TRUE for wireframe
+		if (i == m_selectionID)
+		{
+			XMMATRIX wireLocal = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale * 1.01, g_XMZero, rotate, translate);
+			m_displayList[i].m_model->UpdateEffects([&](IEffect* effect)
+			{
+
+				auto fog = dynamic_cast<IEffectFog*>(effect);
+				if (fog)
+				{
+					fog->SetFogEnabled(true);
+					fog->SetFogStart(0);
+					fog->SetFogEnd(1);
+					fog->SetFogColor(Colors::Yellow);
+				}
+			});
+			m_displayList[i].m_model->Draw(context, *m_states, wireLocal, m_camera.GetViewMatrix(), m_projection, true);	//last variable in draw,  make TRUE for wireframe
+			m_displayList[i].m_model->UpdateEffects([&](IEffect* effect)
+			{
+
+				auto fog = dynamic_cast<IEffectFog*>(effect);
+				if (fog)
+				{
+					fog->SetFogEnabled(false);
+					fog->SetFogStart(0);
+					fog->SetFogEnd(1);
+					fog->SetFogColor(Colors::Yellow);
+				}
+			});
+		}
 		m_deviceResources->PIXEndEvent();
 	}
     m_deviceResources->PIXEndEvent();
@@ -409,11 +445,16 @@ void Game::SaveDisplayChunk(ChunkObject * SceneChunk)
 	m_displayChunk.SaveHeightMap();			//save heightmap to file.
 }
 
+void Game::ChangeCameraMode()
+{
+	m_camera.SetCameraMode(CameraMode::FREE);
+}
+
 void Game::SetSelectionID(int selected)
 {
 	m_selectionID = selected;
 
-	if (m_selectionID)
+	if (m_selectionID >= 0)
 	{
 		m_camera.SetFocus(m_displayList[m_selectionID]);
 	}
@@ -423,6 +464,62 @@ void Game::SetSelectionID(int selected)
 	}
 }
 
+int Game::MousePicking()
+{
+	int selectedID = -1;
+	float pickedDistance = 0;
+	float closestDistance = 0;
+	//Setup near and far planes of frustum with mouse X and mouse Y pass down from ToolMain
+	const XMVECTOR nearSource = XMVectorSet(m_InputCommands.mouseX, m_InputCommands.mouseY, 0.0f, 1.0f);
+	const XMVECTOR farSource = XMVectorSet(m_InputCommands.mouseX, m_InputCommands.mouseY, 1.0f, 1.0f);
+
+	for (int i = 0; i < m_displayList.size(); i++)
+	{
+		const XMVECTORF32 scale = { m_displayList[i].m_scale.x, m_displayList[i].m_scale.y, m_displayList[i].m_scale.z };
+		const XMVECTORF32 translate = { m_displayList[i].m_position.x, m_displayList[i].m_position.y, m_displayList[i].m_position.z };
+
+		XMVECTOR rotate = Quaternion::CreateFromYawPitchRoll(m_displayList[i].m_orientation.y * XM_PI / 180.0f, //Y
+															 m_displayList[i].m_orientation.x * XM_PI / 180.0f, //X
+															 m_displayList[i].m_orientation.z * XM_PI * 180.0f);//Z
+		//Set the world matrix for selected object
+		XMMATRIX local = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale, g_XMZero, rotate, translate);
+
+		//Unproject the points on the near and far plane with respect to the world matrix.
+		XMVECTOR nearPoint = XMVector3Unproject(nearSource, 0.0f, 0.0f, m_screenDimensions.right, m_screenDimensions.bottom, m_deviceResources->GetScreenViewport().MinDepth, m_deviceResources->GetScreenViewport().MaxDepth,
+			m_projection, m_camera.GetViewMatrix(), local);
+
+		XMVECTOR farPoint = XMVector3Unproject(farSource, 0.0f, 0.0f, m_screenDimensions.right, m_screenDimensions.bottom, m_deviceResources->GetScreenViewport().MinDepth, m_deviceResources->GetScreenViewport().MaxDepth,
+			m_projection, m_camera.GetViewMatrix(), local);
+
+		XMVECTOR pickingVector = farPoint - nearPoint;
+		pickingVector = XMVector3Normalize(pickingVector);
+		
+		for (int j = 0; j < m_displayList[i].m_model.get()->meshes.size(); j++)
+		{
+			if (m_displayList[i].m_model.get()->meshes[j]->boundingBox.Intersects(nearPoint, pickingVector, pickedDistance))
+			{
+				if (selectedID == -1)
+				{
+					closestDistance = pickedDistance;
+					selectedID = i;
+				}
+
+				if (pickedDistance < closestDistance)
+				{
+					selectedID = i;
+					closestDistance = pickedDistance;
+				}
+			}
+		}
+
+		
+	}
+	if (selectedID == m_selectionID)
+		return -1;
+
+	//If there is a hit return it.
+	return selectedID;
+}
 #ifdef DXTK_AUDIO
 void Game::NewAudioDevice()
 {

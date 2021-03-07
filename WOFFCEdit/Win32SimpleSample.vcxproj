@@ -171,6 +171,7 @@
     <ClCompile Include="DisplayChunk.cpp" />
     <ClCompile Include="DisplayObject.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="InspectorDialogue.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MFCFrame.cpp" />
     <ClCompile Include="MFCRenderFrame.cpp" />
@@ -183,12 +184,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CameraModes.h" />
     <ClInclude Include="ChunkObject.h" />
     <ClInclude Include="DeviceResources.h" />
     <ClInclude Include="DisplayChunk.h" />
     <ClInclude Include="DisplayObject.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="InputCommands.h" />
+    <ClInclude Include="InspectorDialogue.h" />
     <ClInclude Include="MFCFrame.h" />
     <ClInclude Include="MFCRenderFrame.h" />
     <ClInclude Include="pch.h" />
