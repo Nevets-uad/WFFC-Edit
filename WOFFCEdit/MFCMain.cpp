@@ -6,6 +6,7 @@ BEGIN_MESSAGE_MAP(MFCMain, CWinApp)
 	ON_COMMAND(ID_FILE_QUIT,	&MFCMain::MenuFileQuit)
 	ON_COMMAND(ID_FILE_SAVETERRAIN, &MFCMain::MenuFileSaveTerrain)
 	ON_COMMAND(ID_EDIT_SELECT, &MFCMain::MenuEditSelect)
+	ON_COMMAND(ID_VIEW_INSPECTOR, &MFCMain::MenuViewInspector)
 	ON_COMMAND(ID_BUTTON40001,	&MFCMain::ToolBarButton1)
 	ON_COMMAND(ID_BUTTON40006, &MFCMain::ToolBarFreeCamButton)
 	ON_UPDATE_COMMAND_UI(ID_INDICATOR_TOOL, &CMyFrame::OnUpdatePage)
@@ -77,8 +78,10 @@ int MFCMain::Run()
 
 			m_ToolSystem.Tick(&msg);
 
+
 			//send current object ID to status bar in The main frame
 			m_frame->m_wndStatusBar.SetPaneText(1, statusString.c_str(), 1);	
+			
 		}
 	}
 
@@ -118,6 +121,13 @@ void MFCMain::ToolBarFreeCamButton()
 	m_ToolSystem.onFreeCamToggle();
 }
 
+void MFCMain::MenuViewInspector()
+{
+	m_ToolInspectorDialogue.Create(IDD_DIALOG2);	//Start up modeless
+	m_ToolInspectorDialogue.ShowWindow(SW_SHOW);	//show modeless
+	m_ToolInspectorDialogue.SetObjectData(&m_ToolSystem.m_sceneGraph, &m_ToolSystem.m_selectedObject);
+}
+
 
 MFCMain::MFCMain()
 {
@@ -126,4 +136,5 @@ MFCMain::MFCMain()
 
 MFCMain::~MFCMain()
 {
+
 }

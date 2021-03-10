@@ -134,7 +134,18 @@ private:
 
 	int																		m_winWidth;
 	int																		m_winHeight;
+
+	ID3D11Texture2D* renderTargetTextureInspector;
+	ID3D11RenderTargetView* renderTargetViewInspector;
+	ID3D11ShaderResourceView* shaderResourceViewInspector;
+	ID3D11Texture2D* depthStencilBufferInspector;
+	ID3D11DepthStencilView* depthStencilViewInspector;
+	D3D11_VIEWPORT viewport;
+	DirectX::XMMATRIX mapView;
+	DirectX::XMMATRIX mapProject;
 	
+	void CreateRenderTarget();
+	void RenderSelectedToTarget();
 
 };
 
