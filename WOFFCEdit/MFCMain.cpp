@@ -80,10 +80,17 @@ int MFCMain::Run()
 
 
 			//send current object ID to status bar in The main frame
-			m_frame->m_wndStatusBar.SetPaneText(1, statusString.c_str(), 1);	
+			m_frame->m_wndStatusBar.SetPaneText(1, statusString.c_str(), 1);
+			if (m_ToolInspectorDialogue)
+			{
+				if(m_ToolInspectorDialogue.GetSelectedID() != ID)
+					m_ToolInspectorDialogue.RedrawWindow();
+			}
 			
 		}
 	}
+
+	
 
 	return (int)msg.wParam;
 }
@@ -105,9 +112,17 @@ void MFCMain::MenuEditSelect()
 	//m_ToolSelectDialogue.DoModal();	// start it up modal
 
 	//modeless dialogue must be declared in the class.   If we do local it will go out of scope instantly and destroy itself
-	m_ToolSelectDialogue.Create(IDD_DIALOG1);	//Start up modeless
-	m_ToolSelectDialogue.ShowWindow(SW_SHOW);	//show modeless
-	m_ToolSelectDialogue.SetObjectData(&m_ToolSystem.m_sceneGraph, &m_ToolSystem.m_selectedObject);
+	if (!m_ToolSelectDialogue)
+	{
+		m_ToolSelectDialogue.Create(IDD_DIALOG1);	//Start up modeless
+		m_ToolSelectDialogue.ShowWindow(SW_SHOW);	//show modeless
+		m_ToolSelectDialogue.SetObjectData(&m_ToolSystem.m_sceneGraph, &m_ToolSystem.m_selectedObject);
+	}
+	else
+	{
+		m_ToolSelectDialogue.SetForegroundWindow();
+	}
+	
 }
 
 void MFCMain::ToolBarButton1()
@@ -123,9 +138,17 @@ void MFCMain::ToolBarFreeCamButton()
 
 void MFCMain::MenuViewInspector()
 {
-	m_ToolInspectorDialogue.Create(IDD_DIALOG2);	//Start up modeless
-	m_ToolInspectorDialogue.ShowWindow(SW_SHOW);	//show modeless
-	m_ToolInspectorDialogue.SetObjectData(&m_ToolSystem.m_sceneGraph, &m_ToolSystem.m_selectedObject);
+	if (!m_ToolInspectorDialogue)
+	{
+		m_ToolInspectorDialogue.Create(IDD_DIALOG2);	//Start up modeless
+		m_ToolInspectorDialogue.ShowWindow(SW_SHOW);	//show modeless
+		m_ToolInspectorDialogue.SetObjectData(&m_ToolSystem.m_sceneGraph, &m_ToolSystem.m_selectedObject);
+	}
+	else
+	{
+		m_ToolInspectorDialogue.SetForegroundWindow();
+	}
+	
 }
 
 

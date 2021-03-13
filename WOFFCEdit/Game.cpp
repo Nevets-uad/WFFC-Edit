@@ -29,35 +29,7 @@ Game::Game()
 
 Game::~Game()
 {
-	if (renderTargetTextureInspector)
-	{
-		renderTargetTextureInspector->Release();
-		renderTargetTextureInspector = nullptr;
-	}
 
-	if(renderTargetViewInspector)
-	{
-		renderTargetViewInspector->Release();
-		renderTargetViewInspector = nullptr;
-	}
-
-	if(shaderResourceViewInspector)
-	{
-		shaderResourceViewInspector->Release();
-		shaderResourceViewInspector = nullptr;
-	}
-
-	if(depthStencilBufferInspector)
-	{
-		depthStencilBufferInspector->Release();
-		depthStencilBufferInspector = nullptr;
-	}
-
-	if(depthStencilViewInspector)
-	{
-		depthStencilViewInspector->Release();
-		depthStencilViewInspector = nullptr;
-	}
 #ifdef DXTK_AUDIO
     if (m_audEngine)
     {
@@ -88,6 +60,7 @@ void Game::Initialize(HWND window, int width, int height)
 	GetClientRect(window, &m_screenDimensions);
 	m_winWidth = width;
 	m_winHeight = height;
+	m_RayIntersectPoint = DirectX::SimpleMath::Vector3::Zero;
 #ifdef DXTK_AUDIO
     // Create DirectXTK for Audio objects
     AUDIO_ENGINE_FLAGS eflags = AudioEngine_Default;
@@ -112,10 +85,6 @@ void Game::Initialize(HWND window, int width, int height)
 #endif
 
 	m_selectionID = 0;
-	m_mousePosition = DirectX::SimpleMath::Vector2(0, 0);
-	m_viewportBounds = DirectX::SimpleMath::Vector2(0, 0);
-
-	CreateRenderTarget();
 }
 
 void Game::SetGridState(bool state)
@@ -183,6 +152,58 @@ void Game::Update(DX::StepTimer const& timer)
 #endif
 	
 }
+bool Game::RayIntersectsTriangle(DirectX::SimpleMath::Vector3 rayOrigin, DirectX::SimpleMath::Vector3 rayVector, DirectX::SimpleMath::Vector3& outIntersectionPoint, int i, int j)
+{
+	const float EPSILON = 1e-7;
+	DirectX::SimpleMath::Vector3 vertex0 = m_displayChunk.GetTerrainGeometryAtIndex(i, j).position;
+	DirectX::SimpleMath::Vector3 vertex1 = m_displayChunk.GetTerrainGeometryAtIndex(i, j + 1).position;
+	DirectX::SimpleMath::Vector3 vertex2 = m_displayChunk.GetTerrainGeometryAtIndex(i + 1, j).position;
+	DirectX::SimpleMath::Vector3 edge1, edge2, h, s, q;
+	float a, f, u, v;
+	edge1 = vertex1 - vertex0;
+	edge2 = vertex2 - vertex0;
+	h = rayVector.Cross(edge2);
+
+	a = edge1.Dot(h);
+
+	if (a > -EPSILON && a < EPSILON)
+		return false;    // This ray is parallel to this triangle.
+
+	f = 1.0 / a;
+	s = rayOrigin - vertex0;
+	u = f * s.Dot(h);
+	if (u < 0.0 || u > 1.0)
+		return false;
+	q = s.Cross(edge1);
+	v = f * rayVector.Dot(q);
+	if (v < 0.0 || u + v > 1.0)
+		return false;
+	// At this stage we can compute t to find out where the intersection point is on the line.
+	float t = f * edge2.Dot(q);
+	if (t > EPSILON) // ray intersection
+	{
+		outIntersectionPoint = rayOrigin + rayVector * t;
+		return true;
+	}
+	else // This means that there is a line intersection but not a ray intersection.
+		return false;
+	
+}
+
+void Game::CheckForTriangleIntersection(DirectX::SimpleMath::Vector3 rayOrigin, DirectX::SimpleMath::Vector3 rayVector, DirectX::SimpleMath::Vector3& outIntersectionPoint)
+{
+	for (size_t i = 0; i < TERRAINRESOLUTION - 1; i++)	//looping through QUADS.  so we subtrack one from the terrain array or it will try to draw a quad starting with the last vertex in each row. Which wont work
+	{
+		for (size_t j = 0; j < TERRAINRESOLUTION - 1; j++)//same as above
+		{
+			if (RayIntersectsTriangle(rayOrigin, rayVector, outIntersectionPoint, i, j))
+			{
+				m_displayList[0].m_position = outIntersectionPoint;
+				return;
+			}
+		}
+	}
+}
 #pragma endregion
 
 #pragma region Frame Render
@@ -195,92 +216,87 @@ void Game::Render()
         return;
     }
 
-	if (m_selectionID != -1)
+	Clear();
+
+	m_deviceResources->PIXBeginEvent(L"Render");
+	auto context = m_deviceResources->GetD3DDeviceContext();
+
+	if (m_grid)
 	{
-		RenderSelectedToTarget();
+		// Draw procedurally generated dynamic grid
+		const XMVECTORF32 xaxis = { 512.f, 0.f, 0.f };
+		const XMVECTORF32 yaxis = { 0.f, 0.f, 512.f };
+		DrawGrid(xaxis, yaxis, g_XMZero, 512, 512, Colors::Gray);
 	}
-	else
+	//CAMERA POSITION ON HUD
+	m_sprites->Begin();
+	WCHAR   Buffer[256];
+	std::wstring var = L"Cam X: " + std::to_wstring(m_camera.GetCameraPosition().x) + L"Cam Z: " + std::to_wstring(m_camera.GetCameraPosition().z);
+	std::wstring ray = L"Ray X: " + std::to_wstring(m_RayIntersectPoint.x) + L"Ray Y: " + std::to_wstring(m_RayIntersectPoint.y) + L"Ray Z: " + std::to_wstring(m_RayIntersectPoint.z);
+	m_font->DrawString(m_sprites.get(), var.c_str(), XMFLOAT2(100, 10), Colors::Yellow);
+	m_font->DrawString(m_sprites.get(), ray.c_str(), XMFLOAT2(100, 30), Colors::Yellow);
+	m_sprites->End();
+
+	//RENDER OBJECTS FROM SCENEGRAPH
+	int numRenderObjects = m_displayList.size();
+	for (int i = 0; i < numRenderObjects; i++)
 	{
+		m_deviceResources->PIXBeginEvent(L"Draw model");
+		const XMVECTORF32 scale = { m_displayList[i].m_scale.x, m_displayList[i].m_scale.y, m_displayList[i].m_scale.z };
+		const XMVECTORF32 translate = { m_displayList[i].m_position.x, m_displayList[i].m_position.y, m_displayList[i].m_position.z };
 
-		Clear();
+		//convert degrees into radians for rotation matrix
+		XMVECTOR rotate = Quaternion::CreateFromYawPitchRoll(m_displayList[i].m_orientation.y *3.1415 / 180,
+			m_displayList[i].m_orientation.x *3.1415 / 180,
+			m_displayList[i].m_orientation.z *3.1415 / 180);
 
-		m_deviceResources->PIXBeginEvent(L"Render");
-		auto context = m_deviceResources->GetD3DDeviceContext();
+		XMMATRIX local = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale, g_XMZero, rotate, translate);
 
-		if (m_grid)
+		m_displayList[i].m_model->Draw(context, *m_states, local, m_camera.GetViewMatrix(), m_projection, false);	//last variable in draw,  make TRUE for wireframe
+		if (i == m_selectionID)
 		{
-			// Draw procedurally generated dynamic grid
-			const XMVECTORF32 xaxis = { 512.f, 0.f, 0.f };
-			const XMVECTORF32 yaxis = { 0.f, 0.f, 512.f };
-			DrawGrid(xaxis, yaxis, g_XMZero, 512, 512, Colors::Gray);
-		}
-		//CAMERA POSITION ON HUD
-		m_sprites->Begin();
-		WCHAR   Buffer[256];
-		std::wstring var = L"Cam X: " + std::to_wstring(m_camera.GetCameraPosition().x) + L"Cam Z: " + std::to_wstring(m_camera.GetCameraPosition().z);
-		m_font->DrawString(m_sprites.get(), var.c_str(), XMFLOAT2(100, 10), Colors::Yellow);
-		m_sprites->End();
-
-		//RENDER OBJECTS FROM SCENEGRAPH
-		int numRenderObjects = m_displayList.size();
-		for (int i = 0; i < numRenderObjects; i++)
-		{
-			m_deviceResources->PIXBeginEvent(L"Draw model");
-			const XMVECTORF32 scale = { m_displayList[i].m_scale.x, m_displayList[i].m_scale.y, m_displayList[i].m_scale.z };
-			const XMVECTORF32 translate = { m_displayList[i].m_position.x, m_displayList[i].m_position.y, m_displayList[i].m_position.z };
-
-			//convert degrees into radians for rotation matrix
-			XMVECTOR rotate = Quaternion::CreateFromYawPitchRoll(m_displayList[i].m_orientation.y *3.1415 / 180,
-				m_displayList[i].m_orientation.x *3.1415 / 180,
-				m_displayList[i].m_orientation.z *3.1415 / 180);
-
-			XMMATRIX local = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale, g_XMZero, rotate, translate);
-
-			m_displayList[i].m_model->Draw(context, *m_states, local, m_camera.GetViewMatrix(), m_projection, false);	//last variable in draw,  make TRUE for wireframe
-			if (i == m_selectionID)
+			XMMATRIX wireLocal = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale * 1.01, g_XMZero, rotate, translate);
+			m_displayList[i].m_model->UpdateEffects([&](IEffect* effect)
 			{
-				XMMATRIX wireLocal = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale * 1.01, g_XMZero, rotate, translate);
-				m_displayList[i].m_model->UpdateEffects([&](IEffect* effect)
-				{
 
-					auto fog = dynamic_cast<IEffectFog*>(effect);
-					if (fog)
-					{
-						fog->SetFogEnabled(true);
-						fog->SetFogStart(0);
-						fog->SetFogEnd(1);
-						fog->SetFogColor(Colors::Yellow);
-					}
-				});
-				m_displayList[i].m_model->Draw(context, *m_states, wireLocal, m_camera.GetViewMatrix(), m_projection, true);	//last variable in draw,  make TRUE for wireframe
-				m_displayList[i].m_model->UpdateEffects([&](IEffect* effect)
+				auto fog = dynamic_cast<IEffectFog*>(effect);
+				if (fog)
 				{
+					fog->SetFogEnabled(true);
+					fog->SetFogStart(0);
+					fog->SetFogEnd(1);
+					fog->SetFogColor(Colors::Yellow);
+				}
+			});
+			m_displayList[i].m_model->Draw(context, *m_states, wireLocal, m_camera.GetViewMatrix(), m_projection, true);	//last variable in draw,  make TRUE for wireframe
+			m_displayList[i].m_model->UpdateEffects([&](IEffect* effect)
+			{
 
-					auto fog = dynamic_cast<IEffectFog*>(effect);
-					if (fog)
-					{
-						fog->SetFogEnabled(false);
-						fog->SetFogStart(0);
-						fog->SetFogEnd(1);
-						fog->SetFogColor(Colors::Yellow);
-					}
-				});
-			}
-			m_deviceResources->PIXEndEvent();
+				auto fog = dynamic_cast<IEffectFog*>(effect);
+				if (fog)
+				{
+					fog->SetFogEnabled(false);
+					fog->SetFogStart(0);
+					fog->SetFogEnd(1);
+					fog->SetFogColor(Colors::Yellow);
+				}
+			});
 		}
 		m_deviceResources->PIXEndEvent();
-
-		//RENDER TERRAIN
-		context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
-		context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
-		context->RSSetState(m_states->CullNone());
-		//	context->RSSetState(m_states->Wireframe());		//uncomment for wireframe
-
-			//Render the batch,  This is handled in the Display chunk becuase it has the potential to get complex
-		m_displayChunk.RenderBatch(m_deviceResources);
-
-		m_deviceResources->Present();
 	}
+	m_deviceResources->PIXEndEvent();
+
+	//RENDER TERRAIN
+	context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
+	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
+	context->RSSetState(m_states->CullNone());
+	//	context->RSSetState(m_states->Wireframe());		//uncomment for wireframe
+
+		//Render the batch,  This is handled in the Display chunk becuase it has the potential to get complex
+	m_displayChunk.RenderBatch(m_deviceResources);
+
+	m_deviceResources->Present();
+
 }
 
 // Helper method to clear the back buffers.
@@ -350,131 +366,8 @@ void XM_CALLCONV Game::DrawGrid(FXMVECTOR xAxis, FXMVECTOR yAxis, FXMVECTOR orig
 
     m_deviceResources->PIXEndEvent();
 }
-void Game::CreateRenderTarget()
-{
-	D3D11_TEXTURE2D_DESC textureDesc;
-	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
-	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-	D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
-	D3D11_TEXTURE2D_DESC depthBufferDesc;
-	HRESULT result;
-	ID3D11Device* device = m_deviceResources->GetD3DDevice();
 
-	ZeroMemory(&textureDesc, sizeof(textureDesc));
 
-	//Setup the texture description
-	textureDesc.Width = m_winWidth / 2;
-	textureDesc.Height = m_winHeight / 2;
-	textureDesc.MipLevels = 1;
-	textureDesc.ArraySize = 1;
-	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	textureDesc.SampleDesc.Count = 1;
-	textureDesc.Usage = D3D11_USAGE_DEFAULT;
-	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-	textureDesc.CPUAccessFlags = 0;
-	textureDesc.MiscFlags = 0;
-
-	result = device->CreateTexture2D(&textureDesc, NULL, &renderTargetTextureInspector);
-	if (FAILED(result))
-	{//TODO: Handle errors properly when you work out best way.
-		return;
-	}
-
-	renderTargetViewDesc.Format = textureDesc.Format;
-	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	renderTargetViewDesc.Texture2D.MipSlice = 0;
-
-	result = device->CreateRenderTargetView(renderTargetTextureInspector, &renderTargetViewDesc, &renderTargetViewInspector);
-	if (FAILED(result))
-		return;
-	//Setup description of the shader resource view
-	shaderResourceViewDesc.Format = textureDesc.Format;
-	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-	shaderResourceViewDesc.Texture2D.MipLevels = 1;
-
-	result = device->CreateShaderResourceView(renderTargetTextureInspector, &shaderResourceViewDesc, &shaderResourceViewInspector);
-
-	if (FAILED(result))
-		return;
-
-	ZeroMemory(&depthBufferDesc, sizeof(depthBufferDesc));
-	//Set up depth buffer.
-	depthBufferDesc.Width = m_winWidth;
-	depthBufferDesc.Height = m_winWidth;
-	depthBufferDesc.MipLevels = 1;
-	depthBufferDesc.ArraySize = 1;
-	depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depthBufferDesc.SampleDesc.Count = 1;
-	depthBufferDesc.SampleDesc.Quality = 0;
-	depthBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	depthBufferDesc.CPUAccessFlags = 0;
-	depthBufferDesc.MiscFlags = 0;
-
-	result = device->CreateTexture2D(&depthBufferDesc, NULL, &depthStencilBufferInspector);
-
-	if (FAILED(result))
-		return;
-
-	ZeroMemory(&depthStencilViewDesc, sizeof(depthStencilViewDesc));
-
-	depthStencilViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	depthStencilViewDesc.Texture2D.MipSlice = 0;
-
-	result = device->CreateDepthStencilView(depthStencilBufferInspector, &depthStencilViewDesc, &depthStencilViewInspector);
-
-	XMVECTOR mapCamPosition = XMVectorSetY(m_camera.GetCameraPosition(), XMVectorGetY(m_camera.GetCameraPosition()) + 100.0f);
-	XMVECTOR mapCamTarget = m_camera.GetCameraPosition();
-	XMVECTOR mapCamUp = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-
-	//Set View matrix
-	mapView = XMMatrixLookAtLH(mapCamPosition, mapCamTarget, mapCamUp);
-
-	mapProject = XMMatrixOrthographicLH(512, 512, 1.0f, 1000.0f);
-
-	viewport.Width = (float)m_winWidth;
-	viewport.Height = (float)m_winHeight;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
-	viewport.TopLeftX = 0.0f;
-	viewport.TopLeftY = 0.0f;
-}
-void Game::RenderSelectedToTarget()
-{
-	if (m_selectionID >= 0 && m_selectionID < m_displayList.size())
-	{
-		// Clear the views.
-		ID3D11DeviceContext* context = m_deviceResources->GetD3DDeviceContext();
-		m_deviceResources->PIXBeginEvent(L"Clear");
-		context->OMSetRenderTargets(1, &renderTargetViewInspector, depthStencilViewInspector);
-		context->ClearRenderTargetView(renderTargetViewInspector, Colors::CornflowerBlue);
-		context->ClearDepthStencilView(depthStencilViewInspector, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-		// Set the viewport.
-		context->RSSetViewports(1, &viewport);
-
-		m_deviceResources->PIXEndEvent();
-		const XMVECTORF32 scale = { m_displayList[m_selectionID].m_scale.x, m_displayList[m_selectionID].m_scale.y, m_displayList[m_selectionID].m_scale.z };
-		const XMVECTORF32 translate = { m_displayList[m_selectionID].m_position.x, m_displayList[m_selectionID].m_position.y, m_displayList[m_selectionID].m_position.z };
-		m_deviceResources->PIXBeginEvent(L"Render");
-		//convert degrees into radians for rotation matrix
-		XMVECTOR rotate = Quaternion::CreateFromYawPitchRoll(m_displayList[m_selectionID].m_orientation.y * XM_PI / 180.0f,
-			m_displayList[m_selectionID].m_orientation.x * XM_PI / 180.0f,
-			m_displayList[m_selectionID].m_orientation.z * XM_PI / 180.0f);
-
-		XMMATRIX local = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale, g_XMZero, rotate, translate);
-			m_deviceResources->PIXBeginEvent(L"Draw model");
-		m_displayList[m_selectionID].m_model->Draw(context, *m_states, local, m_camera.GetViewMatrix(), m_projection, false);	//last variable in draw,  make TRUE for wireframe
-			m_deviceResources->PIXEndEvent();
-
-		m_deviceResources->PIXEndEvent();
-
-		m_deviceResources->Present();
-	}
-
-}
 #pragma endregion
 
 #pragma region Message Handlers
@@ -553,7 +446,6 @@ void Game::BuildDisplayList(std::vector<SceneObject> * SceneGraph)
 				lights->SetTexture(newDisplayObject.m_texture_diffuse);			
 			}
 		});
-
 		//set position
 		newDisplayObject.m_position.x = SceneGraph->at(i).posX;
 		newDisplayObject.m_position.y = SceneGraph->at(i).posY;
@@ -588,9 +480,7 @@ void Game::BuildDisplayList(std::vector<SceneObject> * SceneGraph)
 		m_displayList.push_back(newDisplayObject);
 		
 	}
-		
-		
-		
+	
 }
 
 void Game::BuildDisplayChunk(ChunkObject * SceneChunk)
@@ -629,13 +519,24 @@ void Game::SetSelectionID(int selected)
 
 int Game::MousePicking()
 {
+	POINT mPos;
+	mPos.x = m_InputCommands.mouseX;
+	mPos.y = m_InputCommands.mouseY;
+	ClientToScreen(GetActiveWindow(), &mPos);
+	if (mPos.x < 0 || mPos.x > m_winWidth + 100.0f)
+		return m_selectionID;
+
+	if (mPos.y < 0 && mPos.y > m_winHeight)
+		return m_selectionID;
+
 	int selectedID = -1;
 	float pickedDistance = 0;
 	float closestDistance = 0;
 	//Setup near and far planes of frustum with mouse X and mouse Y pass down from ToolMain
 	const XMVECTOR nearSource = XMVectorSet(m_InputCommands.mouseX, m_InputCommands.mouseY, 0.0f, 1.0f);
 	const XMVECTOR farSource = XMVectorSet(m_InputCommands.mouseX, m_InputCommands.mouseY, 1.0f, 1.0f);
-
+	XMVECTOR pickingVector;
+	XMVECTOR nearPoint;
 	for (int i = 0; i < m_displayList.size(); i++)
 	{
 		const XMVECTORF32 scale = { m_displayList[i].m_scale.x, m_displayList[i].m_scale.y, m_displayList[i].m_scale.z };
@@ -648,13 +549,13 @@ int Game::MousePicking()
 		XMMATRIX local = m_world * XMMatrixTransformation(g_XMZero, Quaternion::Identity, scale, g_XMZero, rotate, translate);
 
 		//Unproject the points on the near and far plane with respect to the world matrix.
-		XMVECTOR nearPoint = XMVector3Unproject(nearSource, 0.0f, 0.0f, m_screenDimensions.right, m_screenDimensions.bottom, m_deviceResources->GetScreenViewport().MinDepth, m_deviceResources->GetScreenViewport().MaxDepth,
+		nearPoint = XMVector3Unproject(nearSource, 0.0f, 0.0f, m_screenDimensions.right, m_screenDimensions.bottom, m_deviceResources->GetScreenViewport().MinDepth, m_deviceResources->GetScreenViewport().MaxDepth,
 			m_projection, m_camera.GetViewMatrix(), local);
 
 		XMVECTOR farPoint = XMVector3Unproject(farSource, 0.0f, 0.0f, m_screenDimensions.right, m_screenDimensions.bottom, m_deviceResources->GetScreenViewport().MinDepth, m_deviceResources->GetScreenViewport().MaxDepth,
 			m_projection, m_camera.GetViewMatrix(), local);
 
-		XMVECTOR pickingVector = farPoint - nearPoint;
+		pickingVector = farPoint - nearPoint;
 		pickingVector = XMVector3Normalize(pickingVector);
 		
 		for (int j = 0; j < m_displayList[i].m_model.get()->meshes.size(); j++)
@@ -677,9 +578,17 @@ int Game::MousePicking()
 
 		
 	}
+	
+
+	if (selectedID == -1)
+	{
+		DirectX::SimpleMath::Vector3 origin = m_camera.GetCameraPosition();
+		DirectX::SimpleMath::Vector3 rayVector = m_camera.GetLookDirection();
+		CheckForTriangleIntersection(origin, pickingVector, m_RayIntersectPoint);
+	}
+
 	if (selectedID == m_selectionID)
 		return -1;
-
 	//If there is a hit return it.
 	return selectedID;
 }
@@ -697,6 +606,7 @@ void Game::NewAudioDevice()
 
 
 #pragma endregion
+
 
 #pragma region Direct3D Resources
 // These are the resources that depend on the device.

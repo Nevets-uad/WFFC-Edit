@@ -163,7 +163,7 @@ void DisplayChunk::SaveHeightMap()
 	
 }
 
-void DisplayChunk::UpdateTerrain()
+void DisplayChunk::UpdateTerrain()//TODO:: Change the heightmap to sculpt terrain
 {
 	//all this is doing is transferring the height from the heigtmap into the terrain geometry.
 	int index;
@@ -182,6 +182,18 @@ void DisplayChunk::UpdateTerrain()
 void DisplayChunk::GenerateHeightmap()
 {
 	//insert how YOU want to update the heigtmap here! :D
+}
+
+DirectX::VertexPositionNormalTexture& DisplayChunk::GetTerrainGeometryAtIndex(int x, int y)
+{
+	if (x >= 0 && x < TERRAINRESOLUTION)
+	{
+		if (y >= 0 && y < TERRAINRESOLUTION)
+		{
+			return m_terrainGeometry[x][y];
+		}
+	}
+	return DirectX::VertexPositionNormalTexture();
 }
 
 void DisplayChunk::CalculateTerrainNormals()

@@ -29,6 +29,7 @@ public:
 	void SetWindowSizes(int width, int height) { m_windowWidth = width; m_windowHeight = height; }
 	CameraMode GetCurrentCameraMode() { return m_currentMode; }
 	void SetCameraMode(CameraMode newMode) { m_currentMode = newMode; }
+	DirectX::SimpleMath::Vector3& GetLookDirection() { return m_camLookDirection; }
 private:
 	//The speed the camera moves at.
 	float							m_movespeed;

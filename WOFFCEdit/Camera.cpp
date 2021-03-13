@@ -150,7 +150,7 @@ void Camera::MoveDown()
 
 void Camera::Turn(int& x, int& y, bool& needsUpdate)
 {
-
+	//ShowCursor(false);
 	int xOffset = (x + 2) - (m_windowWidth / 2);
 	int yOffset = (m_windowHeight / 2) - (y + 26);
 
@@ -321,13 +321,18 @@ void Camera::HandleInput(InputCommands &Input)
 {
 	bool camUpdated = false;
 	if (Input.numOne)
+	{
 		m_currentMode = CameraMode::FREE;
-
+	}
 	if (Input.numTwo)
+	{
 		m_currentMode = CameraMode::ROTATE;
+	}
 
 	if (Input.numThree)
+	{
 		m_currentMode = CameraMode::FOCUSED;
+	}
 
 	switch (m_currentMode)
 	{

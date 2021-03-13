@@ -63,7 +63,8 @@ public:
 private:
 
 	void Update(DX::StepTimer const& timer);
-
+	bool RayIntersectsTriangle(DirectX::SimpleMath::Vector3 rayOrigin, DirectX::SimpleMath::Vector3 rayVector, DirectX::SimpleMath::Vector3& outIntersectionPoint, int i, int j);
+	void CheckForTriangleIntersection(DirectX::SimpleMath::Vector3 rayOrigin, DirectX::SimpleMath::Vector3 rayVector, DirectX::SimpleMath::Vector3& outIntersectionPoint);
 	void CreateDeviceDependentResources();
 	void CreateWindowSizeDependentResources();
 
@@ -126,26 +127,9 @@ private:
 	//Window rect
 	RECT																	m_screenDimensions;
 
-	//Render Targets
-	//ID3D11RenderTargetView*													inspectBuffer;
-
-	DirectX::SimpleMath::Vector2											m_mousePosition;
-	DirectX::SimpleMath::Vector2											m_viewportBounds;
-
 	int																		m_winWidth;
 	int																		m_winHeight;
-
-	ID3D11Texture2D* renderTargetTextureInspector;
-	ID3D11RenderTargetView* renderTargetViewInspector;
-	ID3D11ShaderResourceView* shaderResourceViewInspector;
-	ID3D11Texture2D* depthStencilBufferInspector;
-	ID3D11DepthStencilView* depthStencilViewInspector;
-	D3D11_VIEWPORT viewport;
-	DirectX::XMMATRIX mapView;
-	DirectX::XMMATRIX mapProject;
-	
-	void CreateRenderTarget();
-	void RenderSelectedToTarget();
+	DirectX::SimpleMath::Vector3											m_RayIntersectPoint;
 
 };
 

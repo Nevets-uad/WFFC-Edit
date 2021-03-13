@@ -19,11 +19,13 @@ public:
 	void UpdateTerrain();			//updates the geometry based on the heigtmap
 	void GenerateHeightmap();		//creates or alters the heightmap
 	std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionNormalTexture>>  m_batch;
-	std::unique_ptr<DirectX::BasicEffect>       m_terrainEffect;
 
+	DirectX::VertexPositionNormalTexture& GetTerrainGeometryAtIndex(int x, int y);
+	std::unique_ptr<DirectX::BasicEffect>       m_terrainEffect;
 	ID3D11ShaderResourceView *					m_texture_diffuse;				//diffuse texture
 	Microsoft::WRL::ComPtr<ID3D11InputLayout>   m_terrainInputLayout;
 
+	void ToggleWireframe() { m_render_wireframe = !m_render_wireframe; }
 private:
 	
 	DirectX::VertexPositionNormalTexture m_terrainGeometry[TERRAINRESOLUTION][TERRAINRESOLUTION];

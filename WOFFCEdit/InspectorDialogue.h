@@ -13,6 +13,15 @@ public:
 	InspectorDialogue(CWnd* pParent = NULL);
 	virtual ~InspectorDialogue();
 	void SetObjectData(std::vector<SceneObject>* sceneGraph, int* selection);
+	void SetImage(HBITMAP image);
+	int GetSelectedID() { return *m_currentSelection; }
+	virtual BOOL OnInitDialog();
+	virtual void PostNcDestroy();
+	afx_msg void OnBnClickedOk();
+	afx_msg void OnLBnSelectChange();
+	afx_msg void OnTvnSelchangedTree2(NMHDR *pNMHDR, LRESULT *pResult);
+	DECLARE_MESSAGE_MAP()
+	afx_msg void OnPaint();
 	//Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum {IDD = IDD_DIALOG2};
@@ -26,13 +35,16 @@ protected:
 	std::vector<SceneObject>* m_sceneGraph;
 	int* m_currentSelection;
 	HICON m_hIcon;
-public:
-	virtual BOOL OnInitDialog();
-	virtual void PostNcDestroy();
-	afx_msg void OnBnClickedOk();
-	afx_msg void OnLBnSelectChange();
-	afx_msg void OnTvnSelchangedTree2(NMHDR *pNMHDR, LRESULT *pResult);
-	DECLARE_MESSAGE_MAP()
+
+private:
 	CTreeCtrl m_treeCtrl;
+	CStatic m_IDText;
+	CStatic m_InspectorImage;
+
+	void SetSelectionTree();
+	void UpdateSectionTree();
+	bool treeSet;
+	int previousSelectionID;
+	afx_msg void OnStnClickedStaticText();
 };
 
