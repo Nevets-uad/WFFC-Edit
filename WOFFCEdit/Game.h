@@ -48,6 +48,7 @@ public:
 	//tool specific
 	void BuildDisplayList(std::vector<SceneObject> * SceneGraph); //note vector passed by reference 
 	void BuildDisplayChunk(ChunkObject *SceneChunk);
+	std::vector<DisplayObject>& GetDisplayList() { return m_displayList; }
 	void SaveDisplayChunk(ChunkObject *SceneChunk);	//saves geometry et al
 	void ChangeCameraMode();
 	void ClearDisplayList();
@@ -130,7 +131,6 @@ private:
 	int																		m_winWidth;
 	int																		m_winHeight;
 	DirectX::SimpleMath::Vector3											m_RayIntersectPoint;
-
 };
 
 std::wstring StringToWCHART(std::string s);

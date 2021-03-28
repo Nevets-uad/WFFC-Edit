@@ -37,7 +37,7 @@ BOOL MFCMain::InitInstance()
 	m_width		= WindowRECT.Width();
 	m_height	= WindowRECT.Height();
 
-	m_ToolSystem.onActionInitialise(m_toolHandle, m_width, m_height);
+	m_ToolSystem.onActionInitialise(m_toolHandle, m_pMainWnd->GetSafeHwnd(), m_width, m_height);
 
 	return TRUE;
 }
@@ -142,7 +142,7 @@ void MFCMain::MenuViewInspector()
 	{
 		m_ToolInspectorDialogue.Create(IDD_DIALOG2);	//Start up modeless
 		m_ToolInspectorDialogue.ShowWindow(SW_SHOW);	//show modeless
-		m_ToolInspectorDialogue.SetObjectData(&m_ToolSystem.m_sceneGraph, &m_ToolSystem.m_selectedObject);
+		m_ToolInspectorDialogue.SetObjectData(&m_ToolSystem.GetDisplayList(), &m_ToolSystem.m_selectedObject);
 	}
 	else
 	{

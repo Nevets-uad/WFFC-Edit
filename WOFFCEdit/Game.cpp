@@ -29,7 +29,6 @@ Game::Game()
 
 Game::~Game()
 {
-
 #ifdef DXTK_AUDIO
     if (m_audEngine)
     {
@@ -154,10 +153,10 @@ void Game::Update(DX::StepTimer const& timer)
 }
 bool Game::RayIntersectsTriangle(DirectX::SimpleMath::Vector3 rayOrigin, DirectX::SimpleMath::Vector3 rayVector, DirectX::SimpleMath::Vector3& outIntersectionPoint, int i, int j)
 {
-	const float EPSILON = 1e-7;
+	const float EPSILON = 1e-3;
 	DirectX::SimpleMath::Vector3 vertex0 = m_displayChunk.GetTerrainGeometryAtIndex(i, j).position;
 	DirectX::SimpleMath::Vector3 vertex1 = m_displayChunk.GetTerrainGeometryAtIndex(i, j + 1).position;
-	DirectX::SimpleMath::Vector3 vertex2 = m_displayChunk.GetTerrainGeometryAtIndex(i + 1, j).position;
+	DirectX::SimpleMath::Vector3 vertex2 = m_displayChunk.GetTerrainGeometryAtIndex(i + 1, j + 1).position;
 	DirectX::SimpleMath::Vector3 edge1, edge2, h, s, q;
 	float a, f, u, v;
 	edge1 = vertex1 - vertex0;
@@ -192,9 +191,9 @@ bool Game::RayIntersectsTriangle(DirectX::SimpleMath::Vector3 rayOrigin, DirectX
 
 void Game::CheckForTriangleIntersection(DirectX::SimpleMath::Vector3 rayOrigin, DirectX::SimpleMath::Vector3 rayVector, DirectX::SimpleMath::Vector3& outIntersectionPoint)
 {
-	for (size_t i = 0; i < TERRAINRESOLUTION - 1; i++)	//looping through QUADS.  so we subtrack one from the terrain array or it will try to draw a quad starting with the last vertex in each row. Which wont work
+	for (size_t i = 0; i < TERRAINRESOLUTION - 1; i++)	
 	{
-		for (size_t j = 0; j < TERRAINRESOLUTION - 1; j++)//same as above
+		for (size_t j = 0; j < TERRAINRESOLUTION - 1; j++)
 		{
 			if (RayIntersectsTriangle(rayOrigin, rayVector, outIntersectionPoint, i, j))
 			{
@@ -215,12 +214,12 @@ void Game::Render()
     {
         return;
     }
-
+	
 	Clear();
 
 	m_deviceResources->PIXBeginEvent(L"Render");
 	auto context = m_deviceResources->GetD3DDeviceContext();
-
+	
 	if (m_grid)
 	{
 		// Draw procedurally generated dynamic grid
@@ -228,14 +227,7 @@ void Game::Render()
 		const XMVECTORF32 yaxis = { 0.f, 0.f, 512.f };
 		DrawGrid(xaxis, yaxis, g_XMZero, 512, 512, Colors::Gray);
 	}
-	//CAMERA POSITION ON HUD
-	m_sprites->Begin();
-	WCHAR   Buffer[256];
-	std::wstring var = L"Cam X: " + std::to_wstring(m_camera.GetCameraPosition().x) + L"Cam Z: " + std::to_wstring(m_camera.GetCameraPosition().z);
-	std::wstring ray = L"Ray X: " + std::to_wstring(m_RayIntersectPoint.x) + L"Ray Y: " + std::to_wstring(m_RayIntersectPoint.y) + L"Ray Z: " + std::to_wstring(m_RayIntersectPoint.z);
-	m_font->DrawString(m_sprites.get(), var.c_str(), XMFLOAT2(100, 10), Colors::Yellow);
-	m_font->DrawString(m_sprites.get(), ray.c_str(), XMFLOAT2(100, 30), Colors::Yellow);
-	m_sprites->End();
+	
 
 	//RENDER OBJECTS FROM SCENEGRAPH
 	int numRenderObjects = m_displayList.size();
@@ -294,9 +286,16 @@ void Game::Render()
 
 		//Render the batch,  This is handled in the Display chunk becuase it has the potential to get complex
 	m_displayChunk.RenderBatch(m_deviceResources);
-
+	
+	//CAMERA POSITION ON HUD
+	m_sprites->Begin();
+	WCHAR   Buffer[256];
+	std::wstring var = L"Cam X: " + std::to_wstring(m_camera.GetCameraPosition().x) + L"Cam Z: " + std::to_wstring(m_camera.GetCameraPosition().z);
+	std::wstring ray = L"Ray X: " + std::to_wstring(m_RayIntersectPoint.x) + L"Ray Y: " + std::to_wstring(m_RayIntersectPoint.y) + L"Ray Z: " + std::to_wstring(m_RayIntersectPoint.z);
+	m_font->DrawString(m_sprites.get(), var.c_str(), XMFLOAT2(100, 10), Colors::Yellow);
+	m_font->DrawString(m_sprites.get(), ray.c_str(), XMFLOAT2(100, 30), Colors::Yellow);
+	m_sprites->End();
 	m_deviceResources->Present();
-
 }
 
 // Helper method to clear the back buffers.

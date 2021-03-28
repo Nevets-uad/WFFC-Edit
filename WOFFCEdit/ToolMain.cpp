@@ -31,13 +31,14 @@ int ToolMain::getCurrentSelectionID()
 	return m_selectedObject;
 }
 
-void ToolMain::onActionInitialise(HWND handle, int width, int height)
+void ToolMain::onActionInitialise(HWND handle, HWND mainHandle, int width, int height)
 {
 	//window size, handle etc for directX
 	m_width		= width;
 	m_height	= height;
 
 	m_toolHandle = handle;
+	m_mainHandle = mainHandle;
 
 	m_d3dRenderer.Initialize(handle, m_width, m_height);
 
@@ -284,7 +285,7 @@ void ToolMain::onFreeCamToggle()
 void ToolMain::Tick(MSG *msg)
 {
 	//do we have a selection
-	if (m_toolInputCommands.mouseLBDown)
+	if (m_toolInputCommands.mouseLBDown && GetForegroundWindow() == m_mainHandle)
 	{
 		m_selectedObject = m_d3dRenderer.MousePicking();
 		m_toolInputCommands.mouseLBDown = false;
@@ -318,9 +319,12 @@ void ToolMain::UpdateInput(MSG * msg)
 		m_toolInputCommands.mouseX = GET_X_LPARAM(msg->lParam);
 		m_toolInputCommands.mouseY = GET_Y_LPARAM(msg->lParam);
 		break;
-	case WM_LBUTTONDOWN:	//mouse button down,  you will probably need to check when its up too
+	case WM_LBUTTONDOWN:
 		//set some flag for the mouse button in inputcommands
 		m_toolInputCommands.mouseLBDown = true;
+		break;
+	case WM_LBUTTONUP:
+		m_toolInputCommands.mouseLBDown = false;
 		break;
 
 	}

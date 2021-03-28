@@ -12,7 +12,7 @@ public:
 	ID3D11ShaderResourceView *							m_texture_diffuse;					//diffuse texture
 
 
-	int m_ID;
+	int										m_ID;
 	DirectX::SimpleMath::Vector3			m_position;
 	DirectX::SimpleMath::Vector3			m_orientation;
 	DirectX::SimpleMath::Vector3			m_scale;

@@ -2,17 +2,17 @@
 #include <afxdialogex.h>
 #include "resource.h"
 #include <afxwin.h>
-#include "SceneObject.h"
+#include "DisplayObject.h"
 #include <vector>
 class InspectorDialogue :	public CDialogEx
 {
 	DECLARE_DYNAMIC(InspectorDialogue)
 
 public:
-	InspectorDialogue(CWnd* pParent, std::vector<SceneObject>* sceneGraph);
+	InspectorDialogue(CWnd* pParent, std::vector<DisplayObject>* sceneGraph);
 	InspectorDialogue(CWnd* pParent = NULL);
 	virtual ~InspectorDialogue();
-	void SetObjectData(std::vector<SceneObject>* sceneGraph, int* selection);
+	void SetObjectData(std::vector<DisplayObject>* sceneGraph, int* selection);
 	void SetImage(HBITMAP image);
 	int GetSelectedID() { return *m_currentSelection; }
 	virtual BOOL OnInitDialog();
@@ -32,7 +32,7 @@ protected:
 	afx_msg void End(); //Kill the dialogue
 	afx_msg void Select(); //Item has been selected
 
-	std::vector<SceneObject>* m_sceneGraph;
+	std::vector<DisplayObject>* m_displayList;
 	int* m_currentSelection;
 	HICON m_hIcon;
 
@@ -40,11 +40,14 @@ private:
 	CTreeCtrl m_treeCtrl;
 	CStatic m_IDText;
 	CStatic m_InspectorImage;
-
+	CBitmap bmp1;
+	HBITMAP m_inspectorBitmap;
 	void SetSelectionTree();
 	void UpdateSectionTree();
 	bool treeSet;
 	int previousSelectionID;
 	afx_msg void OnStnClickedStaticText();
+public:
+	afx_msg void OnStnClickedPictureStatic();
 };
 

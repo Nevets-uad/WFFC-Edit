@@ -8,6 +8,7 @@ BEGIN_MESSAGE_MAP(InspectorDialogue, CDialogEx)
 	ON_BN_CLICKED(IDOK, &InspectorDialogue::OnBnClickedOk)
 	ON_WM_PAINT()
 	ON_STN_CLICKED(IDC_STATIC_TEXT, &InspectorDialogue::OnStnClickedStaticText)
+	ON_STN_CLICKED(IDC_PICTURE_STATIC, &InspectorDialogue::OnStnClickedPictureStatic)
 END_MESSAGE_MAP()
 
 
@@ -46,10 +47,10 @@ void InspectorDialogue::OnTvnSelchangedTree2(NMHDR *pNMHDR, LRESULT *pResult)
 	*pResult = 0;
 }
 
-InspectorDialogue::InspectorDialogue(CWnd* pParent, std::vector<SceneObject>* sceneGraph) : CDialogEx(IDD_DIALOG2, pParent)
+InspectorDialogue::InspectorDialogue(CWnd* pParent, std::vector<DisplayObject>* sceneGraph) : CDialogEx(IDD_DIALOG2, pParent)
 {
 	m_hIcon = LoadIcon(NULL, MAKEINTRESOURCE(460));
-	m_sceneGraph = sceneGraph;
+	m_displayList = sceneGraph;
 }
 
 InspectorDialogue::InspectorDialogue(CWnd * pParent)
@@ -60,15 +61,14 @@ InspectorDialogue::~InspectorDialogue()
 {
 }
 
-void InspectorDialogue::SetObjectData(std::vector<SceneObject>* sceneGraph, int* selection)
+void InspectorDialogue::SetObjectData(std::vector<DisplayObject>* sceneGraph, int* selection)
 {
 
-	m_sceneGraph = sceneGraph;
+	m_displayList = sceneGraph;
 	m_currentSelection = selection;
 	treeSet = false;
 	previousSelectionID = *m_currentSelection;
 	SetSelectionTree();
-	HBITMAP image;
 }
 
 void InspectorDialogue::SetImage(HBITMAP image)
@@ -112,6 +112,8 @@ void InspectorDialogue::SetSelectionTree()
 	std::wstring optionString;
 	if (*m_currentSelection != -1)
 	{
+		DeleteObject(m_inspectorBitmap);
+		DisplayObject selectedObject = m_displayList->at(*m_currentSelection);
 		std::wstring optionString;
 
 		optionString = L"Item ID: " + std::to_wstring(*m_currentSelection);
@@ -121,36 +123,15 @@ void InspectorDialogue::SetSelectionTree()
 		hNodeName = m_treeCtrl.InsertItem(L"Transform", TVI_ROOT);
 		//Position
 		hValueName = m_treeCtrl.InsertItem(L"Position", hNodeName);
-		//X Pos
-		optionString = L"X: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).posX);
-		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		//Y Pos
-		optionString = L"Y: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).posY);
-		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		//Z Pos
-		optionString = L"Z: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).posZ);
+		optionString = L"X: " + std::to_wstring(selectedObject.m_position.x) + L" Y: " + std::to_wstring(selectedObject.m_position.y) + L" Z: " + std::to_wstring(selectedObject.m_position.z);
 		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
 		//Rotation
 		hValueName = m_treeCtrl.InsertItem(L"Rotation", hNodeName);
-		//X-Rotation
-		optionString = L"X: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).rotX);
-		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		//Y-Rotation
-		optionString = L"Y: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).rotY);
-		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		//Z-Rotation
-		optionString = L"Z: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).rotZ);
+		optionString = L"X: " + std::to_wstring(selectedObject.m_orientation.x) + L" Y: " + std::to_wstring(selectedObject.m_orientation.y) + L" Z: " + std::to_wstring(selectedObject.m_orientation.z);
 		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
 		//Scale
 		hValueName = m_treeCtrl.InsertItem(L"Scale", hNodeName);
-		//X-Scale
-		optionString = L"X: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).scaX);
-		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		//Y-Scale
-		optionString = L"Y: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).scaY);
-		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		//Z-Scale
-		optionString = L"Z: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).scaZ);
+		optionString = L"X: " + std::to_wstring(selectedObject.m_scale.x) + L" Y: " + std::to_wstring(selectedObject.m_scale.y) + L" Z: " + std::to_wstring(selectedObject.m_scale.z);
 		m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
 		//Inspection window
 		//TODO: Find out how to add an image to the tree and add here
@@ -160,6 +141,14 @@ void InspectorDialogue::SetSelectionTree()
 		HTREEITEM root = m_treeCtrl.GetRootItem();
 		root = m_treeCtrl.GetNextSiblingItem(root);
 		m_treeCtrl.SetItemText(root, L"REEE");
+	/*	HBITMAP pic = CreateBitmap(100, 100, 1, 255, m_displayList->at(*m_currentSelection).m_texture_diffuse);
+		m_InspectorImage.SetBitmap(pic);
+		CBitmap pic2;
+		pic2.LoadBitmapW(1);*/
+
+		m_inspectorBitmap = CreateBitmap(100, 125, 1, 32, m_displayList->at(*m_currentSelection).m_texture_diffuse);
+		m_InspectorImage.SetBitmap(m_inspectorBitmap);
+		
 	}
 	else
 	{
@@ -176,6 +165,7 @@ void InspectorDialogue::UpdateSectionTree()
 	
 	if (*m_currentSelection != -1)
 	{
+		DeleteObject(m_inspectorBitmap);
 		std::wstring optionString;
 		HTREEITEM hNodeName, hValueName;
 		HTREEITEM root = m_treeCtrl.GetRootItem();
@@ -183,56 +173,41 @@ void InspectorDialogue::UpdateSectionTree()
 		HTREEITEM nextItem = m_treeCtrl.GetNextSiblingItem(transformItem);
 		HTREEITEM currentItem;
 		optionString = L"Item ID: " + std::to_wstring(*m_currentSelection);
-
+		DisplayObject selectedObject = m_displayList->at(*m_currentSelection);
 		m_IDText.SetWindowText(optionString.c_str());
-		//X Pos
+		//Position
 		currentItem = m_treeCtrl.GetChildItem(transformItem);
-		optionString = L"X: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).posX);
+		optionString = L"X: " + std::to_wstring(selectedObject.m_position.x) + L" Y: " + std::to_wstring(selectedObject.m_position.y) + L" Z: " + std::to_wstring(selectedObject.m_position.z);
 		m_treeCtrl.SetItemText(currentItem, optionString.c_str());
-		//Y Pos
-		currentItem = m_treeCtrl.GetNextSiblingItem(currentItem);
-		optionString = L"Y: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).posY);
+		//Scale
+		currentItem = m_treeCtrl.GetChildItem(nextItem);
+		optionString = L"X: " + std::to_wstring(selectedObject.m_orientation.x) + L" Y: " + std::to_wstring(selectedObject.m_orientation.y) + L" Z: " + std::to_wstring(selectedObject.m_orientation.z);
 		m_treeCtrl.SetItemText(currentItem, optionString.c_str());
-		//Z Pos
-		currentItem = m_treeCtrl.GetNextSiblingItem(currentItem);
-		optionString = L"Z: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).posZ);
+
+		//Update nextItem to rotation
+		nextItem = m_treeCtrl.GetNextSiblingItem(nextItem);
+
+		//Rotation
+		currentItem = m_treeCtrl.GetChildItem(nextItem);
+		optionString = L"X: " + std::to_wstring(selectedObject.m_scale.x) + L" Y: " + std::to_wstring(selectedObject.m_scale.y) + L" Z: " + std::to_wstring(selectedObject.m_scale.z);
 		m_treeCtrl.SetItemText(currentItem, optionString.c_str());
-		////Rotation
-		//hValueName = m_treeCtrl.InsertItem(L"Rotation", hNodeName);
-		////X-Rotation
-		//optionString = L"X: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).rotX);
-		//m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		////Y-Rotation
-		//optionString = L"Y: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).rotY);
-		//m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		////Z-Rotation
-		//optionString = L"Z: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).rotZ);
-		//m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		////Scale
-		//hValueName = m_treeCtrl.InsertItem(L"Scale", hNodeName);
-		////X-Scale
-		//optionString = L"X: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).scaX);
-		//m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		////Y-Scale
-		//optionString = L"Y: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).scaY);
-		//m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		////Z-Scale
-		//optionString = L"Z: " + std::to_wstring(m_sceneGraph->at(*m_currentSelection).scaZ);
-		//m_treeCtrl.InsertItem(optionString.c_str(), hValueName);
-		////Inspection window
-		////TODO: Find out how to add an image to the tree and add here
-		////
-		//hNodeName = m_treeCtrl.InsertItem(L"Test", TVI_ROOT);
-		//hValueName = m_treeCtrl.InsertItem(L"Test More", hNodeName);
-		//HTREEITEM root = m_treeCtrl.GetRootItem();
-		//root = m_treeCtrl.GetNextSiblingItem(root);
-		//m_treeCtrl.SetItemText(root, L"REEE");
+
+		m_inspectorBitmap = CreateBitmap(100, 125, 1, 32, m_displayList->at(*m_currentSelection).m_texture_diffuse);
+		
+		m_InspectorImage.SetBitmap(m_inspectorBitmap);
+
 	}
 	previousSelectionID = *m_currentSelection;
 }
 
 
 void InspectorDialogue::OnStnClickedStaticText()
+{
+	// TODO: Add your control notification handler code here
+}
+
+
+void InspectorDialogue::OnStnClickedPictureStatic()
 {
 	// TODO: Add your control notification handler code here
 }
